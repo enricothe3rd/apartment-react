@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { randomUUID } from "node:crypto";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
 import { env } from "../../config/env.js";
@@ -33,15 +34,18 @@ const refreshSchema = z.object({
   refreshToken: z.string().min(32),
 });
 
-function createAccessToken(user: {
-  id: string;
-  email: string;
-  role: "ADMIN" | "MANAGER" | "STAFF" | "TENANT";
-}) {
+type AuthRole = "ADMIN" | "MANAGER" | "STAFF" | "TENANT";
+
+function createAccessToken(
+  user: { id: string; email: string },
+  role: AuthRole,
+  orgId?: string
+) {
   return jwt.sign(
     {
       email: user.email,
-      role: user.role,
+      role,
+      ...(orgId ? { orgId } : {}),
     },
     env.jwtSecret,
     {
@@ -49,6 +53,25 @@ function createAccessToken(user: {
       expiresIn: "1h",
     }
   );
+}
+
+async function loadDefaultMembership(userId: string) {
+  return prisma.organizationMember.findFirst({
+    where: { userId },
+    include: { organization: true },
+    orderBy: { createdAt: "asc" },
+  });
+}
+
+function slugFromEmail(email: string) {
+  const base = email
+    .split("@")[0]
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")
+    .slice(0, 24);
+
+  return `${base || "workspace"}-${randomUUID().slice(0, 6)}`;
 }
 
 async function createStoredRefreshToken(userId: string) {
@@ -78,19 +101,51 @@ authRouter.post("/register", authRateLimit, validateBody(registerSchema), async 
       return;
     }
 
-    const user = await prisma.user.create({
-      data: {
-        name: request.body.name,
-        email: request.body.email,
-        passwordHash: hashPassword(request.body.password),
-        role: request.body.role,
-      },
-      select: userSelect,
+    const user = await prisma.$transaction(async (tx) => {
+      const createdUser = await tx.user.create({
+        data: {
+          name: request.body.name,
+          email: request.body.email,
+          passwordHash: hashPassword(request.body.password),
+          role: "ADMIN",
+        },
+        select: userSelect,
+      });
+
+      const trialEndsAt = new Date();
+      trialEndsAt.setDate(trialEndsAt.getDate() + 14);
+
+      const organization = await tx.organization.create({
+        data: {
+          name: `${request.body.name}'s Workspace`,
+          slug: slugFromEmail(request.body.email),
+          plan: "TRIAL",
+          status: "ACTIVE",
+          trialEndsAt,
+        },
+        select: { id: true },
+      });
+
+      await tx.organizationMember.create({
+        data: {
+          organizationId: organization.id,
+          userId: createdUser.id,
+          role: "ADMIN",
+        },
+      });
+
+      return createdUser;
     });
 
+    const membership = await loadDefaultMembership(user.id);
+
     response.status(201).json({
-      user,
-      accessToken: createAccessToken(user),
+      user: { ...user, role: membership?.role ?? user.role },
+      accessToken: createAccessToken(
+        user,
+        membership?.role ?? "ADMIN",
+        membership?.organizationId
+      ),
       refreshToken: await createStoredRefreshToken(user.id),
     });
   } catch (error) {
@@ -109,14 +164,18 @@ authRouter.post("/login", authRateLimit, validateBody(loginSchema), async (reque
       return;
     }
 
+    const membership = await loadDefaultMembership(user.id);
+    const role = membership?.role ?? user.role;
+    const orgId = membership?.organizationId;
+
     response.json({
       user: {
         id: user.id,
         name: user.name,
         email: user.email,
-        role: user.role,
+        role,
       },
-      accessToken: createAccessToken(user),
+      accessToken: createAccessToken(user, role, orgId),
       refreshToken: await createStoredRefreshToken(user.id),
     });
   } catch (error) {
@@ -171,9 +230,13 @@ authRouter.post("/refresh", authRateLimit, validateBody(refreshSchema), async (r
       data: { revokedAt: new Date() },
     });
 
+    const membership = await loadDefaultMembership(storedToken.user.id);
+    const role = membership?.role ?? storedToken.user.role;
+    const orgId = membership?.organizationId;
+
     response.json({
-      user: storedToken.user,
-      accessToken: createAccessToken(storedToken.user),
+      user: { ...storedToken.user, role },
+      accessToken: createAccessToken(storedToken.user, role, orgId),
       refreshToken: await createStoredRefreshToken(storedToken.user.id),
     });
   } catch (error) {

@@ -4,7 +4,7 @@ import { hashPassword } from "../src/modules/auth/password.js";
 const prisma = new PrismaClient();
 
 async function main() {
-  await prisma.user.upsert({
+  const adminUser = await prisma.user.upsert({
     where: { email: "admin@property.local" },
     update: {},
     create: {
@@ -15,20 +15,80 @@ async function main() {
     },
   });
 
+  const trialUser = await prisma.user.upsert({
+    where: { email: "manager@sunset.demo" },
+    update: {},
+    create: {
+      name: "Sofia Reyes",
+      email: "manager@sunset.demo",
+      passwordHash: hashPassword("password123"),
+      role: "MANAGER",
+    },
+  });
+
+  const trialEnds = new Date();
+  trialEnds.setDate(trialEnds.getDate() + 14);
+
+  await prisma.organization.upsert({
+    where: { id: "org-demo" },
+    update: { plan: "PRO", status: "ACTIVE" },
+    create: {
+      id: "org-demo",
+      name: "Demo Properties",
+      slug: "demo-properties",
+      plan: "PRO",
+      status: "ACTIVE",
+    },
+  });
+
+  await prisma.organization.upsert({
+    where: { id: "org-trial" },
+    update: {},
+    create: {
+      id: "org-trial",
+      name: "Sunset Towers",
+      slug: "sunset-towers",
+      plan: "TRIAL",
+      status: "ACTIVE",
+      trialEndsAt: trialEnds,
+    },
+  });
+
+  await prisma.organizationMember.upsert({
+    where: {
+      organizationId_userId: { organizationId: "org-demo", userId: adminUser.id },
+    },
+    update: { role: "ADMIN" },
+    create: { organizationId: "org-demo", userId: adminUser.id, role: "ADMIN" },
+  });
+
+  await prisma.organizationMember.upsert({
+    where: {
+      organizationId_userId: { organizationId: "org-trial", userId: trialUser.id },
+    },
+    update: { role: "ADMIN" },
+    create: { organizationId: "org-trial", userId: trialUser.id, role: "ADMIN" },
+  });
+
+  const ORG = "org-demo";
+
   const property = await prisma.property.upsert({
     where: { id: "seed-property-maple" },
     update: {},
     create: {
+      organizationId: ORG,
       id: "seed-property-maple",
       name: "Maple Residences",
       address: "112 Maple Avenue",
       city: "Quezon City",
       buildings: {
         create: {
+          organizationId: ORG,
           id: "seed-building-a",
           name: "A",
           floors: {
             create: {
+              organizationId: ORG,
               id: "seed-floor-a-1",
               level: 1,
             },
@@ -49,6 +109,7 @@ async function main() {
     where: { id: "seed-unit-a-101" },
     update: {},
     create: {
+      organizationId: ORG,
       id: "seed-unit-a-101",
       propertyId: property.id,
       buildingId: building.id,
@@ -65,6 +126,7 @@ async function main() {
     where: { id: "seed-unit-a-102" },
     update: { status: "DELINQUENT" },
     create: {
+      organizationId: ORG,
       id: "seed-unit-a-102",
       propertyId: property.id,
       buildingId: building.id,
@@ -81,6 +143,7 @@ async function main() {
     where: { id: "seed-unit-a-103" },
     update: { status: "MAINTENANCE" },
     create: {
+      organizationId: ORG,
       id: "seed-unit-a-103",
       propertyId: property.id,
       buildingId: building.id,
@@ -97,6 +160,7 @@ async function main() {
     where: { id: "seed-unit-a-104" },
     update: { status: "VACANT" },
     create: {
+      organizationId: ORG,
       id: "seed-unit-a-104",
       propertyId: property.id,
       buildingId: building.id,
@@ -113,6 +177,7 @@ async function main() {
     where: { email: "angela.reyes@example.com" },
     update: {},
     create: {
+      organizationId: ORG,
       id: "seed-tenant-angela",
       name: "Angela Reyes",
       email: "angela.reyes@example.com",
@@ -125,6 +190,7 @@ async function main() {
     where: { email: "marco.santos@example.com" },
     update: { unitId: secondUnit.id },
     create: {
+      organizationId: ORG,
       id: "seed-tenant-marco",
       name: "Marco Santos",
       email: "marco.santos@example.com",
@@ -148,6 +214,7 @@ async function main() {
     where: { id: "seed-lease-angela-2026" },
     update: { status: "EXPIRING_SOON", endDate: new Date("2026-09-30") },
     create: {
+      organizationId: ORG,
       id: "seed-lease-angela-2026",
       tenantId: tenant.id,
       unitId: unit.id,
@@ -163,6 +230,7 @@ async function main() {
     where: { id: "seed-payment-september" },
     update: {},
     create: {
+      organizationId: ORG,
       id: "seed-payment-september",
       tenantId: tenant.id,
       unitId: unit.id,
@@ -179,6 +247,7 @@ async function main() {
     where: { id: "seed-lease-marco-2026" },
     update: {},
     create: {
+      organizationId: ORG,
       id: "seed-lease-marco-2026",
       tenantId: secondTenant.id,
       unitId: secondUnit.id,
@@ -194,6 +263,7 @@ async function main() {
     where: { id: "seed-payment-marco-overdue" },
     update: {},
     create: {
+      organizationId: ORG,
       id: "seed-payment-marco-overdue",
       tenantId: secondTenant.id,
       unitId: secondUnit.id,
@@ -208,6 +278,7 @@ async function main() {
     where: { id: "seed-expense-aircon" },
     update: {},
     create: {
+      organizationId: ORG,
       id: "seed-expense-aircon",
       propertyId: property.id,
       category: "Repairs",
@@ -221,6 +292,7 @@ async function main() {
     where: { id: "seed-maintenance-aircon" },
     update: {},
     create: {
+      organizationId: ORG,
       id: "seed-maintenance-aircon",
       title: "Aircon leak in bedroom",
       description: "Tenant reported water leaking from the bedroom aircon.",
@@ -235,6 +307,7 @@ async function main() {
     where: { id: "seed-payment-vacant-hold" },
     update: {},
     create: {
+      organizationId: ORG,
       id: "seed-payment-vacant-hold",
       tenantId: tenant.id,
       unitId: unit.id,
@@ -249,6 +322,7 @@ async function main() {
     where: { id: "seed-notification-lease" },
     update: {},
     create: {
+      organizationId: ORG,
       id: "seed-notification-lease",
       type: "lease",
       title: "Lease review",

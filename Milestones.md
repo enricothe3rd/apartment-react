@@ -498,6 +498,53 @@ Completion check:
 - [x] Production database migration command documented.
 - [x] Main workflow manual testing checklist documented.
 
+## Milestone 14: Multi-Tenant SaaS And Subscription
+
+Goal: Turn the single-tenant app into a testing-only multi-tenant SaaS with plan-based subscription gating. This milestone also makes the project portfolio-ready with an obvious multi-tenancy + billing story.
+
+Multi-tenancy checklist:
+
+- [ ] Add an `Organization` model with name, unique slug, plan, status, and trial end date.
+- [ ] Add an `OrganizationMember` join model and move role from `User` to the membership level.
+- [ ] Keep `User` as a global login account that can belong to one or more organizations.
+- [ ] Add `organizationId` to `Property`, `Tenant`, and `Notification`.
+- [ ] Scope dependent records (units, leases, payments, expenses, maintenance) through their parent records.
+- [ ] Add a `requireOrg` middleware and include `organizationId` + membership role in the JWT.
+- [ ] Registration endpoint creates an organization plus an ADMIN membership.
+- [ ] Every list and detail query filters by organization (no cross-tenant reads or writes).
+- [ ] Seed two demo organizations and verify full data isolation between them.
+
+Billing and subscription checklist (testing only, no real payments):
+
+- [ ] Add plan catalog: `TRIAL`, `FREE`, `PRO` with limits (properties, units, tenants, members) and feature flags (reports, export).
+- [ ] Add `GET /api/billing/entitlements` returning plan, usage counts, and available features.
+- [ ] Add `POST /api/billing/upgrade` (fake plan switch) guarded to organization ADMIN.
+- [ ] Enforce plan limits server-side on create endpoints (respond `402 Payment Required`).
+- [ ] Handle trial expiration or downgrade by re-locking gated features.
+- [ ] Document where Stripe test mode checkout + webhook would plug in later.
+
+Frontend checklist:
+
+- [ ] Add a Plan & Billing page with usage meters and upgrade/downgrade buttons (testing mode).
+- [ ] Show a plan badge and upgrade prompt in the header or sidebar.
+- [ ] Add org settings: rename organization, change slug, invite members by email + role (no email send needed for testing), remove members.
+- [ ] Add an organization switcher for users who belong to more than one organization.
+- [ ] Block or prompt with an upgrade message when a plan limit is reached.
+
+Demo / portfolio checklist:
+
+- [ ] Seed two demo organizations with realistic data; make one organization sit near its plan limit.
+- [ ] Add one-click demo logins (admin, manager, tenant) on the sign-in page.
+- [ ] Update README: architecture, live URL, demo credentials, ERD summary, and "production next steps" section.
+- [ ] Add automated API tests for org isolation and plan-limit enforcement.
+
+Completion check:
+
+- [ ] A user in organization A cannot read or write organization B records.
+- [ ] A TENANT role cannot access billing or organization settings.
+- [ ] A trial organization hits its limits, upgrades unlock features, and downgrade re-locks them.
+- [ ] Demo accounts work from the deployed URL.
+
 ## Backend API Overview
 
 Suggested base URL during development:

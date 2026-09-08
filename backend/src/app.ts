@@ -15,6 +15,8 @@ import { notificationsRouter } from "./modules/notifications/notifications.route
 import { paymentsRouter } from "./modules/payments/payments.routes.js";
 import { createPlaceholderRouter } from "./modules/placeholder-router.js";
 import { propertiesRouter } from "./modules/properties/properties.routes.js";
+import { billingRouter } from "./modules/billing/billing.routes.js";
+import { organizationsRouter } from "./modules/organizations/organizations.routes.js";
 import { reportsRouter } from "./modules/reports/reports.routes.js";
 import { systemRouter } from "./modules/system/system.routes.js";
 import { tenantsRouter } from "./modules/tenants/tenants.routes.js";
@@ -63,6 +65,8 @@ app.use("/api/maintenance", maintenanceRouter);
 app.use("/api/expenses", expensesRouter);
 app.use("/api/reports", reportsRouter);
 app.use("/api/notifications", notificationsRouter);
+app.use("/api/organizations", organizationsRouter);
+app.use("/api/billing", billingRouter);
 
 app.use("/api", (request, response) => {
   response.status(404).json({

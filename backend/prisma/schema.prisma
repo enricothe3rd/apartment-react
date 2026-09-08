@@ -14,6 +14,18 @@ enum Role {
   TENANT
 }
 
+enum Plan {
+  TRIAL
+  FREE
+  PRO
+}
+
+enum OrganizationStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
 enum UnitStatus {
   OCCUPIED
   VACANT
@@ -59,6 +71,7 @@ model User {
   passwordHash String
   role         Role     @default(MANAGER)
   refreshTokens RefreshToken[]
+  organizationMembers OrganizationMember[]
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   deletedAt    DateTime?
@@ -82,7 +95,37 @@ model RefreshToken {
   @@index([revokedAt])
 }
 
+model Organization {
+  id          String             @id @default(cuid())
+  name        String
+  slug        String             @unique
+  plan        Plan               @default(TRIAL)
+  status      OrganizationStatus @default(ACTIVE)
+  trialEndsAt DateTime?
+  organizationMembers OrganizationMember[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@index([plan])
+  @@index([status])
+}
+
+model OrganizationMember {
+  id             String       @id @default(cuid())
+  organizationId String
+  userId         String
+  role           Role         @default(MANAGER)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+}
+
 model Property {
+  organizationId String?
   id        String     @id @default(cuid())
   name      String
   address   String
@@ -100,6 +143,7 @@ model Property {
 }
 
 model Building {
+  organizationId String?
   id         String   @id @default(cuid())
   propertyId String
   name       String
@@ -115,6 +159,7 @@ model Building {
 }
 
 model Floor {
+  organizationId String?
   id         String   @id @default(cuid())
   buildingId String
   level      Int
@@ -129,6 +174,7 @@ model Floor {
 }
 
 model Unit {
+  organizationId String?
   id                  String               @id @default(cuid())
   propertyId          String
   buildingId          String
@@ -157,6 +203,7 @@ model Unit {
 }
 
 model Tenant {
+  organizationId String?
   id        String    @id @default(cuid())
   name      String
   email     String    @unique
@@ -174,6 +221,7 @@ model Tenant {
 }
 
 model Lease {
+  organizationId String?
   id          String      @id @default(cuid())
   tenantId    String
   unitId      String
@@ -197,6 +245,7 @@ model Lease {
 }
 
 model Payment {
+  organizationId String?
   id        String        @id @default(cuid())
   tenantId  String
   unitId    String
@@ -222,6 +271,7 @@ model Payment {
 }
 
 model MaintenanceRequest {
+  organizationId String?
   id          String              @id @default(cuid())
   title       String
   description String?
@@ -271,6 +321,7 @@ model MaintenanceAttachment {
 }
 
 model Expense {
+  organizationId String?
   id          String   @id @default(cuid())
   propertyId  String
   category    String
@@ -289,6 +340,7 @@ model Expense {
 }
 
 model Notification {
+  organizationId String?
   id        String   @id @default(cuid())
   type      String
   title     String

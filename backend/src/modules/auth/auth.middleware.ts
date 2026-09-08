@@ -1,11 +1,13 @@
 import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { env } from "../../config/env.js";
+import { orgContext } from "../../config/prisma.js";
 
 type AuthTokenPayload = {
   sub: string;
   email: string;
   role: "ADMIN" | "MANAGER" | "STAFF" | "TENANT";
+  orgId?: string;
 };
 
 export type AuthenticatedRequest = Request & {
@@ -29,10 +31,25 @@ export function authenticate(
 
   try {
     request.user = jwt.verify(token, env.jwtSecret) as AuthTokenPayload;
-    next();
+    orgContext.run(request.user.orgId, () => next());
+    return;
   } catch {
     response.status(401).json({ message: "Invalid or expired token" });
   }
+}
+
+/** Rejects requests that do not belong to an organization. */
+export function requireOrg(
+  request: AuthenticatedRequest,
+  response: Response,
+  next: NextFunction
+) {
+  if (!request.user?.orgId) {
+    response.status(403).json({ message: "No organization assigned to account" });
+    return;
+  }
+
+  next();
 }
 
 export function authorize(roles: AuthTokenPayload["role"][]) {

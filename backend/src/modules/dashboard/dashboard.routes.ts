@@ -1,7 +1,10 @@
 import { Router } from "express";
 import { prisma } from "../../config/prisma.js";
+import { authenticate } from "../auth/auth.middleware.js";
 
 export const dashboardRouter = Router();
+
+dashboardRouter.use(authenticate);
 
 dashboardRouter.get("/summary", async (_request, response, next) => {
   try {

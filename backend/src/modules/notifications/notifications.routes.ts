@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../../config/prisma.js";
 import { validateBody } from "../../middleware/validate.js";
+import type { AuthenticatedRequest } from "../auth/auth.middleware.js";
 import { authenticate, authorize } from "../auth/auth.middleware.js";
 
 export const notificationsRouter = Router();
@@ -14,7 +15,10 @@ const notificationSchema = z.object({
   read: z.boolean().optional(),
 });
 
-async function generateSystemNotifications() {
+async function generateSystemNotifications(organizationId?: string) {
+  if (!organizationId) {
+    return;
+  }
   const overduePayments = await prisma.payment.findMany({
     where: { deletedAt: null, status: "OVERDUE" },
     include: { tenant: true },
@@ -38,6 +42,7 @@ async function generateSystemNotifications() {
         update: {},
         create: {
           id: `rent-${payment.id}`,
+          organizationId,
           type: "rent",
           title: "Overdue rent",
           message: `${payment.tenant.name} has overdue rent of ${Number(payment.amount).toLocaleString()}.`,
@@ -51,6 +56,7 @@ async function generateSystemNotifications() {
         update: {},
         create: {
           id: `lease-${lease.id}`,
+          organizationId,
           type: "lease",
           title: "Lease expiring soon",
           message: `${lease.tenant.name}'s lease for ${lease.unit.label} needs review.`,
@@ -64,6 +70,7 @@ async function generateSystemNotifications() {
         update: {},
         create: {
           id: `maintenance-${request.id}`,
+          organizationId,
           type: "maintenance",
           title: "Priority maintenance",
           message: request.title,
@@ -78,7 +85,8 @@ notificationsRouter.use(authenticate);
 
 notificationsRouter.get("/", async (request, response, next) => {
   try {
-    await generateSystemNotifications();
+    const orgId = (request as AuthenticatedRequest).user?.orgId;
+    await generateSystemNotifications(orgId);
     const unreadOnly = request.query.unread === "true";
     const notifications = await prisma.notification.findMany({
       where: {
