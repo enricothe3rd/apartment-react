@@ -1,0 +1,305 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  STAFF
+  TENANT
+}
+
+enum UnitStatus {
+  OCCUPIED
+  VACANT
+  RESERVED
+  MAINTENANCE
+  DELINQUENT
+}
+
+enum LeaseStatus {
+  DRAFT
+  ACTIVE
+  EXPIRING_SOON
+  EXPIRED
+  RENEWED
+  TERMINATED
+}
+
+enum PaymentStatus {
+  PAID
+  PENDING
+  OVERDUE
+}
+
+enum MaintenanceStatus {
+  NEW
+  ASSIGNED
+  IN_PROGRESS
+  WAITING
+  COMPLETED
+}
+
+enum MaintenancePriority {
+  LOW
+  MEDIUM
+  HIGH
+  EMERGENCY
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(MANAGER)
+  refreshTokens RefreshToken[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  deletedAt    DateTime?
+
+  @@index([role])
+  @@index([deletedAt])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([revokedAt])
+}
+
+model Property {
+  id        String     @id @default(cuid())
+  name      String
+  address   String
+  city      String
+  status    String     @default("active")
+  buildings Building[]
+  units     Unit[]
+  expenses  Expense[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  deletedAt DateTime?
+
+  @@index([status])
+  @@index([deletedAt])
+}
+
+model Building {
+  id         String   @id @default(cuid())
+  propertyId String
+  name       String
+  property   Property @relation(fields: [propertyId], references: [id])
+  floors     Floor[]
+  units      Unit[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  deletedAt  DateTime?
+
+  @@index([propertyId])
+  @@index([deletedAt])
+}
+
+model Floor {
+  id         String   @id @default(cuid())
+  buildingId String
+  level      Int
+  building   Building @relation(fields: [buildingId], references: [id])
+  units      Unit[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  deletedAt  DateTime?
+
+  @@index([buildingId])
+  @@index([deletedAt])
+}
+
+model Unit {
+  id                  String               @id @default(cuid())
+  propertyId          String
+  buildingId          String
+  floorId             String
+  label               String
+  bedrooms            Int
+  bathrooms           Int
+  monthlyRent         Decimal
+  status              UnitStatus           @default(VACANT)
+  property            Property             @relation(fields: [propertyId], references: [id])
+  building            Building             @relation(fields: [buildingId], references: [id])
+  floor               Floor                @relation(fields: [floorId], references: [id])
+  tenants             Tenant[]
+  leases              Lease[]
+  payments            Payment[]
+  maintenanceRequests MaintenanceRequest[]
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  deletedAt           DateTime?
+
+  @@index([propertyId])
+  @@index([buildingId])
+  @@index([floorId])
+  @@index([status])
+  @@index([deletedAt])
+}
+
+model Tenant {
+  id        String    @id @default(cuid())
+  name      String
+  email     String    @unique
+  phone     String
+  unitId    String?
+  unit      Unit?     @relation(fields: [unitId], references: [id])
+  leases    Lease[]
+  payments  Payment[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([unitId])
+  @@index([deletedAt])
+}
+
+model Lease {
+  id          String      @id @default(cuid())
+  tenantId    String
+  unitId      String
+  startDate   DateTime
+  endDate     DateTime
+  monthlyRent Decimal
+  deposit     Decimal
+  status      LeaseStatus @default(DRAFT)
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  unit        Unit        @relation(fields: [unitId], references: [id])
+  payments    Payment[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  deletedAt   DateTime?
+
+  @@index([tenantId])
+  @@index([unitId])
+  @@index([status])
+  @@index([endDate])
+  @@index([deletedAt])
+}
+
+model Payment {
+  id        String        @id @default(cuid())
+  tenantId  String
+  unitId    String
+  leaseId   String?
+  dueDate   DateTime
+  paidDate  DateTime?
+  amount    Decimal
+  status    PaymentStatus @default(PENDING)
+  method    String?
+  tenant    Tenant        @relation(fields: [tenantId], references: [id])
+  unit      Unit          @relation(fields: [unitId], references: [id])
+  lease     Lease?        @relation(fields: [leaseId], references: [id])
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  deletedAt DateTime?
+
+  @@index([tenantId])
+  @@index([unitId])
+  @@index([leaseId])
+  @@index([status])
+  @@index([dueDate])
+  @@index([deletedAt])
+}
+
+model MaintenanceRequest {
+  id          String              @id @default(cuid())
+  title       String
+  description String?
+  unitId      String
+  priority    MaintenancePriority @default(MEDIUM)
+  status      MaintenanceStatus   @default(NEW)
+  assignedTo  String?
+  unit        Unit                @relation(fields: [unitId], references: [id])
+  comments    MaintenanceComment[]
+  attachments MaintenanceAttachment[]
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  deletedAt   DateTime?
+
+  @@index([unitId])
+  @@index([priority])
+  @@index([status])
+  @@index([deletedAt])
+}
+
+model MaintenanceComment {
+  id        String             @id @default(cuid())
+  requestId String
+  author    String
+  body      String
+  request   MaintenanceRequest @relation(fields: [requestId], references: [id])
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  deletedAt DateTime?
+
+  @@index([requestId])
+  @@index([deletedAt])
+}
+
+model MaintenanceAttachment {
+  id        String             @id @default(cuid())
+  requestId String
+  fileName  String
+  fileUrl   String
+  request   MaintenanceRequest @relation(fields: [requestId], references: [id])
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  deletedAt DateTime?
+
+  @@index([requestId])
+  @@index([deletedAt])
+}
+
+model Expense {
+  id          String   @id @default(cuid())
+  propertyId  String
+  category    String
+  description String
+  amount      Decimal
+  expenseDate DateTime
+  property    Property @relation(fields: [propertyId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  @@index([propertyId])
+  @@index([category])
+  @@index([expenseDate])
+  @@index([deletedAt])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  type      String
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  targetUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  @@index([read])
+  @@index([createdAt])
+  @@index([deletedAt])
+}

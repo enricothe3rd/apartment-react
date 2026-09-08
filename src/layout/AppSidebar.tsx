@@ -4,8 +4,9 @@ import { Link, useLocation } from "react-router";
 // Assume these icons are imported from an icon library
 import {
   BoxCubeIcon,
-  CalenderIcon,
   ChevronDownIcon,
+  DollarLineIcon,
+  FileIcon,
   GridIcon,
   HorizontaLDots,
   ListIcon,
@@ -13,15 +14,19 @@ import {
   PieChartIcon,
   PlugInIcon,
   TableIcon,
+  TaskIcon,
   UserCircleIcon,
 } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
 import SidebarWidget from "./SidebarWidget";
+import { hasPermission, type Permission } from "../config/permissions";
+import { useAuth } from "../context/AuthContext";
 
 type NavItem = {
   name: string;
   icon: React.ReactNode;
   path?: string;
+  permission?: Permission;
   subItems?: { name: string; path: string; pro?: boolean; new?: boolean }[];
 };
 
@@ -29,58 +34,82 @@ const navItems: NavItem[] = [
   {
     icon: <GridIcon />,
     name: "Dashboard",
-    subItems: [{ name: "Ecommerce", path: "/", pro: false }],
+    path: "/",
+    permission: "view_dashboard",
   },
   {
-    icon: <CalenderIcon />,
-    name: "Calendar",
-    path: "/calendar",
+    icon: <BoxCubeIcon />,
+    name: "Properties",
+    permission: "manage_properties",
+    subItems: [
+      { name: "Properties", path: "/properties", pro: false },
+      { name: "Buildings", path: "/properties", pro: false },
+      { name: "Floors", path: "/properties", pro: false },
+      { name: "Units", path: "/properties", pro: false },
+      { name: "Floor Plan", path: "/properties", pro: false },
+    ],
   },
   {
     icon: <UserCircleIcon />,
-    name: "User Profile",
-    path: "/profile",
+    name: "Tenants",
+    path: "/tenants",
+    permission: "manage_tenants",
   },
   {
-    name: "Forms",
+    name: "Leases",
     icon: <ListIcon />,
-    subItems: [{ name: "Form Elements", path: "/form-elements", pro: false }],
-  },
-  {
-    name: "Tables",
-    icon: <TableIcon />,
-    subItems: [{ name: "Basic Tables", path: "/basic-tables", pro: false }],
-  },
-  {
-    name: "Pages",
-    icon: <PageIcon />,
+    permission: "manage_leases",
     subItems: [
-      { name: "Blank Page", path: "/blank", pro: false },
-      { name: "404 Error", path: "/error-404", pro: false },
+      { name: "Lease List", path: "/leases", pro: false },
+      { name: "Create Lease", path: "/leases/new", pro: false },
+      { name: "Renewals", path: "/leases", pro: false },
+      { name: "Expiration Tracking", path: "/leases", pro: false },
     ],
+  },
+  {
+    icon: <DollarLineIcon />,
+    name: "Payments",
+    path: "/payments",
+    permission: "manage_payments",
+  },
+  {
+    icon: <TaskIcon />,
+    name: "Maintenance",
+    path: "/maintenance",
+    permission: "manage_maintenance",
   },
 ];
 
 const othersItems: NavItem[] = [
   {
+    icon: <TableIcon />,
+    name: "Expenses",
+    path: "/expenses",
+    permission: "manage_expenses",
+  },
+  {
     icon: <PieChartIcon />,
-    name: "Charts",
+    name: "Reports",
+    permission: "view_reports",
     subItems: [
-      { name: "Line Chart", path: "/line-chart", pro: false },
-      { name: "Bar Chart", path: "/bar-chart", pro: false },
+      { name: "Revenue", path: "/reports", pro: false },
+      { name: "Expenses", path: "/reports", pro: false },
+      { name: "Occupancy", path: "/reports", pro: false },
+      { name: "Payments", path: "/reports", pro: false },
+      { name: "Maintenance", path: "/reports", pro: false },
     ],
   },
   {
-    icon: <BoxCubeIcon />,
-    name: "UI Elements",
-    subItems: [
-      { name: "Alerts", path: "/alerts", pro: false },
-      { name: "Avatar", path: "/avatars", pro: false },
-      { name: "Badge", path: "/badge", pro: false },
-      { name: "Buttons", path: "/buttons", pro: false },
-      { name: "Images", path: "/images", pro: false },
-      { name: "Videos", path: "/videos", pro: false },
-    ],
+    icon: <PageIcon />,
+    name: "Notifications",
+    path: "/notifications",
+    permission: "view_notifications",
+  },
+  {
+    icon: <FileIcon />,
+    name: "Settings",
+    path: "/settings",
+    permission: "manage_settings",
   },
   {
     icon: <PlugInIcon />,
@@ -94,7 +123,14 @@ const othersItems: NavItem[] = [
 
 const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
+  const { user } = useAuth();
   const location = useLocation();
+  const visibleNavItems = navItems.filter(
+    (item) => !item.permission || hasPermission(user?.role, item.permission)
+  );
+  const visibleOtherItems = othersItems.filter(
+    (item) => !item.permission || hasPermission(user?.role, item.permission)
+  );
 
   const [openSubmenu, setOpenSubmenu] = useState<{
     type: "main" | "others";
@@ -348,7 +384,7 @@ const AppSidebar: React.FC = () => {
                   <HorizontaLDots className="size-6" />
                 )}
               </h2>
-              {renderMenuItems(navItems, "main")}
+              {renderMenuItems(visibleNavItems, "main")}
             </div>
             <div className="">
               <h2
@@ -364,7 +400,7 @@ const AppSidebar: React.FC = () => {
                   <HorizontaLDots />
                 )}
               </h2>
-              {renderMenuItems(othersItems, "others")}
+              {renderMenuItems(visibleOtherItems, "others")}
             </div>
           </div>
         </nav>

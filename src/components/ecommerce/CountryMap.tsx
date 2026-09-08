@@ -1,6 +1,7 @@
 // react plugin for creating vector maps
 import { VectorMap } from "@react-jvectormap/core";
 import { worldMill } from "@react-jvectormap/world";
+import type { CSSProperties } from "react";
 
 // Define the component props
 interface CountryMapProps {
@@ -16,7 +17,7 @@ const CountryMap: React.FC<CountryMapProps> = ({ mapColor }) => {
         initial: {
           fill: "#465FFF",
           r: 4, // Custom radius for markers
-        } as any, // Type assertion to bypass strict CSS property checks
+        } as unknown as CSSProperties,
       }}
       markersSelectable={true}
       markers={[
