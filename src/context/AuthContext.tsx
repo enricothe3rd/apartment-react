@@ -41,6 +41,22 @@ type AuthContextValue = {
 const storageKey = "property-management-auth";
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+async function readApiResponse(response: Response) {
+  const text = await response.text();
+
+  if (!text) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return {
+      message: `API returned ${response.status} ${response.statusText || "without JSON"}`,
+    };
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -108,7 +124,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await response.json();
+      const data = await readApiResponse(response);
 
       if (!response.ok) {
         throw new Error(data.message ?? "Unable to sign in");
@@ -134,7 +150,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ ...input, role: input.role ?? "MANAGER" }),
       });
 
-      const data = await response.json();
+      const data = await readApiResponse(response);
 
       if (!response.ok) {
         throw new Error(data.message ?? "Unable to create account");

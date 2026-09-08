@@ -63,4 +63,11 @@ app.use("/api/maintenance", maintenanceRouter);
 app.use("/api/expenses", expensesRouter);
 app.use("/api/reports", reportsRouter);
 app.use("/api/notifications", notificationsRouter);
+
+app.use("/api", (request, response) => {
+  response.status(404).json({
+    message: `API route not found: ${request.method} ${request.originalUrl}`,
+  });
+});
+
 app.use(errorHandler);
