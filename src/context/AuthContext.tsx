@@ -45,7 +45,9 @@ async function readApiResponse(response: Response) {
   const text = await response.text();
 
   if (!text) {
-    return {};
+    return {
+      message: `API returned ${response.status} ${response.statusText || "with an empty response"} from ${response.url}`,
+    };
   }
 
   try {
