@@ -18,15 +18,9 @@
     "@fullcalendar/timegrid": "^6.1.15",
     "@react-jvectormap/core": "^1.0.4",
     "@react-jvectormap/world": "^1.1.2",
-    "@prisma/client": "^6.15.0",
     "apexcharts": "^4.1.0",
     "clsx": "^2.1.1",
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.7",
-    "express": "^4.21.2",
     "flatpickr": "^4.6.13",
-    "helmet": "^8.0.0",
-    "jsonwebtoken": "^9.0.2",
     "react": "^19.0.0",
     "react-apexcharts": "^1.7.0",
     "react-dnd": "^16.0.1",
@@ -53,8 +47,7 @@
     "typescript": "~5.7.2",
     "typescript-eslint": "^8.22.0",
     "vite": "^6.1.0",
-    "vite-plugin-svgr": "^4.3.0",
-    "zod": "^3.24.1"
+    "vite-plugin-svgr": "^4.3.0"
   },
   "overrides": {
     "react-helmet-async": {
